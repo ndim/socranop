@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2020 Jim Ramsay <i.am@jimramsay.com>
+# Copyright (c) 2020,2021 Hans Ulrich Niedermann <hun@n-dimensional.de>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,19 +29,21 @@ import usb.core
 
 import soundcraft.constants as const
 
+from soundcraft.dirs import find_statedir
 
-DEFAULT_STATEDIR = "/var/lib/soundcraft-utils"
+
 HARMAN_USB = 0x05FC
 
 
 class NotepadBase:
     def __init__(
-        self, idProduct, routingTarget, stateDir=DEFAULT_STATEDIR, fixedRouting=None,
+        self, idProduct, routingTarget, stateDir=None, fixedRouting=None,
     ):
         if fixedRouting is None:
             fixedRouting = []
         self.routingTarget = routingTarget
         self.fixedRouting = fixedRouting
+        assert stateDir
         self.stateDir = stateDir
         self.dev = usb.core.find(idVendor=HARMAN_USB, idProduct=idProduct)
         if self.dev is not None:
@@ -212,7 +215,9 @@ class Notepad_5(NotepadBase):
     }
 
 
-def autodetect(stateDir=DEFAULT_STATEDIR):
+def autodetect(stateDir=None):
+    if not stateDir:
+        stateDir = find_statedir()
     for devClass in (Notepad_12fx, Notepad_8fx, Notepad_5):
         dev = devClass(stateDir=stateDir)
         if dev.found():
