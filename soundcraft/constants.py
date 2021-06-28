@@ -58,7 +58,9 @@ OLD_BASE_EXE_SERVICE = "soundcraft_dbus_service"
 OLD_STATEDIR = "/var/lib/soundcraft-utils"
 
 
-# Device IDs
+# USB Device vendor and product IDs
+VENDOR_ID_HARMAN = 0x05FC
+
 PRODUCT_ID_NOTEPAD_5 = 0x0030
 PRODUCT_ID_NOTEPAD_8FX = 0x0031
 PRODUCT_ID_NOTEPAD_12FX = 0x0032

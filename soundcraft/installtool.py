@@ -663,8 +663,7 @@ class UdevRulesInstallTool(FileInstallTool):
         ]
         for product_id in const.PY_LIST_OF_PRODUCT_IDS:
             lines.append(
-                'ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="05fc", ATTRS{idProduct}=="%04x", TAG+="uaccess"'
-                % product_id
+                f'ACTION=="add", SUBSYSTEM=="usb", ATTRS{{idVendor}}=="{const.VENDOR_ID_HARMAN:04x}", ATTRS{{idProduct}}=="{product_id:04x}", TAG+="uaccess"'
             )
 
         self.udev_rules_content = "".join([f"{line}\n" for line in lines])
@@ -700,7 +699,7 @@ for product_id in {sh_list_of_product_ids}
 do
     udevadm trigger --verbose \\
         --action=add --subsystem-match=usb \\
-        --attr-match=idVendor=05fc --attr-match=idProduct=${{product_id}}
+        --attr-match=idVendor={const.VENDOR_ID_HARMAN:04x} --attr-match=idProduct=${{product_id}}
 done""",
             skip_if=skip_if,
             comment="Trigger udev rules which run when adding existing mixer devices",

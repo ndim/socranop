@@ -34,9 +34,6 @@ import soundcraft.constants as const
 from soundcraft.dirs import get_dirs
 
 
-HARMAN_USB = 0x05FC
-
-
 class NotepadBase:
     def __init__(
         self, idProduct, routingTarget, stateDir=None, fixedRouting=None,
@@ -52,7 +49,7 @@ class NotepadBase:
             # whatever type stateDir is to a Path.
             stateDir = Path(stateDir)
         print("Using stateDir", repr(stateDir))
-        self.dev = usb.core.find(idVendor=HARMAN_USB, idProduct=idProduct)
+        self.dev = usb.core.find(idVendor=const.VENDOR_ID_HARMAN, idProduct=idProduct)
         print("Found device", self.dev)
         if self.dev is not None:
             major = self.dev.bcdDevice >> 8
