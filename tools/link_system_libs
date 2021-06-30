@@ -48,7 +48,7 @@ class Symlinker:
         vars = {}
         exec(proc.stdout, vars, vars)
         path = [Path(elt) for elt in vars["path"]]
-        return [elt for elt in path if elt.name == ["site-packages", "dist-packages"]]
+        return [elt for elt in path if elt.name in ["site-packages", "dist-packages"]]
 
     def setup_library(self, libname):
         """Ensure the proper symlinks exist for library subdir called 'libname'"""
