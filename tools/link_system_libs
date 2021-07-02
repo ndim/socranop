@@ -22,126 +22,148 @@
 # SOFTWARE.
 #
 # Usage:
-#     tools/link_system_libs.py
+#     tools/link_system_libs
 #
 # In the pipenv virtualenv, create appropriate symlinks from
-# site-packages/gi pointing to the system's site-packages/gi, so that
-# a later call to "pipenv install" can succeed without needing to
-# compile the huge amount of gobject packages.
+# site-packages/gi pointing to the system's {dist,site}-packages/gi,
+# so that using the pipenv can succeed later without needing to
+# compile the *HUGE* amount of gobject package dependencies.
 
 
 import subprocess
+import sys
 
+from importlib import import_module
 from pathlib import Path
 
 
-class Symlinker:
-    def __init__(self):
-        self.system_site_packages = self.get_site_packages(["/usr/bin/python3"])
-        self.pipenv_site_packages = self.get_site_packages(["pipenv", "run", "python3"])
+def pipenv_values(var_names):
+    """Get the value for expr_string from a pipenv python3"""
+    prog = "\n".join(["import sys"] +
+                     [f"print('{var}', '=', repr(sys.{var}))"
+                      for var in var_names])
+    # print("prog", repr(prog))
+    cmd = ["pipenv", "run", "python3", "-c", prog]
+    proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    # print("proc.stdout", repr(proc.stdout))
+    vars = {}
+    exec(proc.stdout, vars, vars)
+    retval = dict([(k,vars[k]) for k in var_names])
+    # print("retval", repr(retval))
+    return retval
 
-    def get_site_packages(self, python_cmd):
-        """Get the given python_cmd's sys.path elements ending in '/site-packages' (or '/dist-packages' for Debian)"""
 
-        cmd = python_cmd + ["-c", "import sys; print('path', '=', repr(sys.path))"]
-        proc = subprocess.run(cmd, check=True, capture_output=True, text=True,)
-        vars = {}
-        exec(proc.stdout, vars, vars)
-        path = [Path(elt) for elt in vars["path"]]
-        return [elt for elt in path if elt.name in ["site-packages", "dist-packages"]]
-
-    def setup_library(self, libname):
-        """Ensure the proper symlinks exist for library subdir called 'libname'"""
-
-        print("Setting up library", libname)
-        system_site_package_libs = [elt / libname for elt in self.system_site_packages]
-        system_existing_site_package_libs = [
-            elt for elt in system_site_package_libs if elt.is_dir()
-        ]
-
-        system_existing_site_package_libs.sort()
-        pipenv_sorted_site_packages = sorted(self.pipenv_site_packages)
-
-        len_system = len(system_existing_site_package_libs)
-        len_pipenv = len(pipenv_sorted_site_packages)
-
-        print("system_existing_site_package_libs")
-        for p in system_existing_site_package_libs:
-            print("  ", p)
-
-        print("pipenv_sorted_site_packages")
-        for p in pipenv_sorted_site_packages:
-            print("  ", p)
-
-        if len_system != len_pipenv:
-            raise RuntimeError("list lengths differ")
-
-        last_execprefixdir = None
-        for system_libdir, pipenv_site_packages in zip(
-            system_existing_site_package_libs, pipenv_sorted_site_packages
-        ):
-            print("system_libdir", system_libdir)
-            print("pipenv_site_packages", pipenv_site_packages)
-
-            assert system_libdir.parent.name in ["site-packages", "dist-packages"]
-            system_python_ver = system_libdir.parent.parent.name
-            pipenv_python_ver = pipenv_site_packages.parent.name
-            print("system_python_ver", system_python_ver)
-            print("pipenv_python_ver", pipenv_python_ver)
-            if system_python_ver != pipenv_python_ver:
-                # python version mismatch, cannot symlink to system lib
-                continue
-
-            s_libdir = system_libdir.parents[2]
-            p_libdir = pipenv_site_packages.parents[1]
-            print("  ", "s_libdir", s_libdir)
-            print("  ", "p_libdir", p_libdir)
-            assert s_libdir.name == p_libdir.name
-
-            reldir = system_libdir.relative_to(s_libdir)
-            print("  ", "reldir  ", reldir)
-
-            execprefixdir = s_libdir.parent
-            if last_execprefixdir is None:
-                pass
-            elif last_execprefixdir == execprefixdir:
-                pass
-            else:
-                raise RuntimeError(
-                    "All execprefixdir values must match (%s!=%s)"
-                    % (repr(last_execprefixdir), repr(execprefixdir))
-                )
-
-            self.ensure_symlink(s_libdir / reldir, p_libdir / reldir)
-
-            last_execprefixdir = execprefixdir
-
-    def ensure_symlink(self, target, symlink):
-        """Ensure symlink 'symlink' points to target 'target'"""
-        print("Ensuring symlink", symlink, "points to", target)
-        if symlink.is_symlink():
-            resolved_target = target.resolve()
-            resolved_symlink = symlink.resolve()
-            if resolved_target == resolved_symlink:
-                print("Symlink exists and is pointing to the target")
-            else:
-                print("Updating symlink")
-                symlink.symlink_to(target)
-        elif symlink.exists():
-            raise RuntimeError("Something of the name of the symlink already exists")
+def ensure_symlink(target, symlink):
+    """Ensure symlink 'symlink' points to target 'target'"""
+    print(" ", "from", symlink)
+    print(" ", "  to", target)
+    if symlink.is_symlink():
+        if symlink.samefile(target):
+            print(" ", "    ", "symlink exists and is pointing to the target")
         else:
-            print("Creating symlink")
+            print(" ", "    ", "updating symlink")
+            symlink.unlink()
             symlink.symlink_to(target)
+    elif symlink.exists():
+        raise RuntimeError("Something with the symlink name already exists")
+    else:
+        print(" ", "    ", "creating symlink")
+        symlink.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        symlink.symlink_to(target)
 
 
-LIBRARY_NAMES = ["gi"]
+class LibraryLinker:
+
+    def __init__(self):
+        self.symlinks = {}
+
+        print("Library Linker")
+
+        self.system_executable = Path(sys.executable)
+        print(" ", "system_executable", self.system_executable)
+
+        self.system_prefix = Path(sys.prefix)
+        print(" ", "system_prefix", self.system_prefix)
+
+        self.system_path = [Path(p) for p in sys.path]
+        print(" ", "system_path")
+        for p in self.system_path:
+            print(" ", " ", p)
+
+        print()
+
+        values = pipenv_values(['executable', 'prefix', 'path'])
+
+        self.pipenv_executable = Path(values['executable'])
+        print(" ", "pipenv_executable", self.pipenv_executable)
+
+        if self.system_executable == self.pipenv_executable:
+            raise RuntimeError(f"pipenv python3 must not be {sys.executable} - run this outside pipenv!")
+
+        self.pipenv_prefix = Path(values['prefix'])
+        print(" ", "pipenv_prefix", self.pipenv_prefix)
+
+        self.pipenv_path = [Path(p) for p in values['path']]
+        print(" ", "pipenv_path")
+        for p in self.pipenv_path:
+            print(" ", " ", p)
+
+        yyy = [p.parent.name for p in self.pipenv_path
+               if ((p.name in ["dist-packages", "site-packages"]) and
+                   (str(p).startswith(f"{self.pipenv_prefix}/")))]
+        print(" ", "yyy")
+        for p in yyy:
+            print(" ", " ", p)
+        self.pipenv_python_dir = yyy[0]
+        for p in yyy[1:]:
+            if p != self.pipenv_python_dir:
+                raise RuntimeError("All names in yyy should be the same")
+
+        print(" ", "pipenv_python_dir", self.pipenv_python_dir)
+
+        print()
+
+    def link_lib(self, libname):
+        print("Module", libname)
+        module = import_module(libname)
+        module_path = [Path(p) for p in module.__path__]
+        print(" ", "module_path")
+        for p in module_path:
+            print(" ", " ", "*", p)
+
+            if p.name != libname:
+                raise RuntimeError("last path component must be libname")
+
+            packages_dir = p.parent.name
+            if packages_dir not in ["dist-packages", "site-packages"]:
+                raise RuntimeError("second to last path component must be {dist,site}-packages")
+            python_dir = p.parent.parent.name
+            if not python_dir.startswith('python3'):
+                raise RuntimeError("third to last path component must begin with 'python3'")
+
+            lib_dir = p.parent.parent.parent.name
+            if lib_dir not in ['lib', 'lib32', 'lib64']:
+                raise RuntimeError("fourth to last path component must be lib{,32,64}")
+
+            symlink = self.pipenv_prefix.joinpath(lib_dir, self.pipenv_python_dir,
+                                                 "site-packages", libname)
+            print(" ", " ", "<", symlink)
+
+            self.symlinks[symlink] = p
+        print()
 
 
 def main():
-    sl = Symlinker()
-    for libname in LIBRARY_NAMES:
-        sl.setup_library(libname)
+    libname_list = ["gi"]
+    if libname_list:
+        ll = LibraryLinker()
+        for libname in libname_list:
+            ll.link_lib(libname)
+
+        print("Symlinks")
+        for symlink, target in iter(ll.symlinks.items()):
+            ensure_symlink(target, symlink)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
