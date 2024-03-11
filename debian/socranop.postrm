@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+#DEBHELPER#
+
+echo "socranop postuninst script:" "$@"
+
+# Ensure udev picks up our rules have been removed
+udevadm control --reload
+# Trigger new events for our devices without our rules
+udevadm trigger --action=add --subsystem-match=usb --attr-match=idVendor=05fc --attr-match=idProduct=0030
+udevadm trigger --action=add --subsystem-match=usb --attr-match=idVendor=05fc --attr-match=idProduct=0031
+udevadm trigger --action=add --subsystem-match=usb --attr-match=idVendor=05fc --attr-match=idProduct=0032

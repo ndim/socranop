@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+export DH_VERBOSE=1
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+execute_after_dh_auto_install:
+	@set -ex; \
+	chroot="$(CURDIR)/debian/socranop"; \
+	test -d "$$chroot" || exit 23; \
+	dist_packages="$$chroot/usr/lib/$$(py3versions -d)/dist-packages"; \
+	test -d "$$dist_packages" || exit 42; \
+	export PYTHONPATH="$${dist_packages}$${PYTHONPATH:+":$${PYTHONPATH}"}"; \
+	export PATH="$${chroot}/usr/bin:$$PATH"; \
+	export PYTHONDONTWRITEBYTECODE=1; \
+	socranop-installtool package-build-install --chroot="$$chroot"

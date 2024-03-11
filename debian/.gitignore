@@ -1,0 +1,8 @@
+/debhelper-build-stamp
+/socranop.debhelper.log
+/socranop/
+/.debhelper/
+/socranop.postinst.debhelper
+/socranop.prerm.debhelper
+/socranop.substvars
+/files

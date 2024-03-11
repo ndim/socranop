@@ -1,0 +1,41 @@
+Source: socranop
+Section: misc
+Priority: optional
+Maintainer: Hans Ulrich Niedermann <hun@n-dimensional.de>
+Build-Depends: debhelper-compat (= 13),
+ dh-python,
+ python3,
+ python3-setuptools,
+ python3-dbus,
+ python3-gi,
+ python3-pytest,
+ python3-pytest-runner,
+ python3-usb,
+ gir1.2-glib-2.0,
+ gir1.2-gtk-3.0,
+ gir1.2-gudev-1.0,
+Rules-Requires-Root: no
+Standards-Version: 4.6.0
+Vcs-Git: https://github.com/ndim/socranop.git
+Vcs-Browser: https://github.com/ndim/socranop
+Homepage: https://github.com/socratools/socranop
+
+Package: socranop
+Architecture: all
+Depends:
+ python3-dbus,
+ python3-gi,
+ python3-usb,
+ gir1.2-glib-2.0,
+ gir1.2-gtk-3.0,
+ gir1.2-gudev-1.0,
+ gsettings-desktop-schemas,
+ udev,
+ ${misc:Depends},
+ ${python3:Depends}
+Recommends:
+ default-dbus-session-bus | dbus-session-bus,
+ xdg-utils
+Description: Utilities for Soundcraft Notepad series of mixers
+ Configures advanced features of the Soundcraft Notepad series of mixers
+ like the audio channel routing to USB audio in.

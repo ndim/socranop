@@ -1,0 +1,5 @@
+socranop (0.4.92-1) unstable; urgency=medium
+
+  * First shot at packaging socranop for Debian.
+
+ -- Hans Ulrich Niedermann <hun@n-dimensional.de>  Sun, 10 Mar 2024 15:41:51 +0000
