@@ -1,0 +1,80 @@
+name: "deb Package"
+
+on:
+  push:
+    branches:
+      - 'debian/latest'
+
+jobs:
+  build:
+    name: "${{ matrix.os }} ${{ matrix.container || 'native' }}"
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest }
+          - { os: ubuntu-latest, container: "debian:11" }
+          - { os: ubuntu-latest, container: "debian:12" }
+          - { os: ubuntu-latest, container: "ubuntu:23.10" }
+    steps:
+      - name: make sudo conditional on container
+        run: >-
+          if test "x${{ matrix.container }}" = x; then echo "sudo=sudo" >> $GITHUB_ENV; else echo "sudo=" >> $GITHUB_ENV; fi
+      - name: Install prerequisites
+        run: >-
+          $sudo apt-get update
+
+          $sudo apt-get install -y
+          git
+          dh-python
+          python3-dbus
+          git-buildpackage
+          debhelper
+          devscripts
+          build-essential
+          pandoc
+          python3-pytest
+          python3-pytest-runner
+          python3-usb
+          gir1.2-gtk-3.0
+          gir1.2-gudev-1.0
+          pbuilder-
+          cowbuilder-
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build a package
+        run: >-
+          set -x
+
+          pwd
+
+          df
+
+          mount
+
+          find . | env LC_ALL=C sort
+
+          git config --global --add safe.directory $(realpath .)
+
+          grep "^VERSION_ID=" /etc/os-release | tr -d '"' >> $GITHUB_ENV
+
+          gbp buildpackage --no-sign
+      - name: move deb file
+        run: >-
+          mv ../socranop_*_all.deb .
+
+          for f in socranop_*_all.deb; do if test -f "$f"; then echo "debfile=$f" >> $GITHUB_ENV; fi; done
+
+          if test "x${{ matrix.container }}" = x; then
+            echo "artifact_name=native-ubuntu_${VERSION_ID}" >> $GITHUB_ENV;
+          else
+            echo "artifact_name=container-${{ matrix.container }}" | tr : _ >> $GITHUB_ENV;
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.artifact_name }}
+          path: ${{ env.debfile }}
+          overwrite: true
+          if-no-files-found: error

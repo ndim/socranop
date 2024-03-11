@@ -7,3 +7,8 @@ pypi.*key
 /Pipfile.lock
 /.tox/
 .eggs
+
+# Debian packaging uses this
+/.pybuild/
+
+# End of file.
